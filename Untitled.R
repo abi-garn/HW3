@@ -51,6 +51,7 @@ classifications = sub("\\[Classification:\\s([^]]*).*", "\\1", secondLines); cla
 priorities = sub(".*\\[Priority:\\s([^]]*).*", "\\1", secondLines); priorities[1]
 
 #Final extractions
+#Third Line extractions
 remainingLines = sub(".*([0-9]+\\/.*).*", "\\1", result);remainingLines[1]
 thirdLine = sub("([^a-zA-Z]*).*", "\\1", remainingLines);thirdLine[1]
 thirdLine = trimws(thirdLine)
@@ -65,6 +66,26 @@ destinationIP = sub(".*\\>(\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+).*", "\\1", thir
 
 destinationIP.port = sub(".*\\:([0-9]+).*", "\\1", thirdLine); destinationIP.port[1]
 
+#Fourth Line extractions
+fourthLine = sub(".*\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\:[0-9]+(.*DgmLen\\:[0-9]+).*", "\\1", remainingLines);fourthLine[1]
+
+protocol = sub("([A-Za-z]+).*", "\\1", fourthLine);protocol[1]
+protocol = trimws(protocol)
+
+ttl = sub(".*TTL\\:([0-9]+).*", "\\1", fourthLine);ttl[1]
+tos = sub(".*TOS\\:([0-9]+x[0-9]+).*", "\\1", fourthLine);tos[1]
+id = sub(".*ID\\:([0-9]+).*", "\\1", fourthLine);id[1]
+iplength = sub(".*IpLen\\:([0-9]+).*", "\\1", fourthLine);iplength[1]
+dgmlength = sub(".*DgmLen\\:([0-9]+).*", "\\1", fourthLine);dgmlength[1]
+
+
+
+
+
+
+#Last Line extractions
+  #I need to get all info after dgmlength
+lastLines = sub(".*\\:[0-9]+(.*TcpLen\\:\\s[0-9]+.*)", "\\1", remainingLines);lastLines[8]
 
 
 
