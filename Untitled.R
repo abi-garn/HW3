@@ -23,25 +23,34 @@ readFile.2 <- function(allLines){
 }
 listOfFiles = unzip(zippedFiles); 
 
-a = c("cool", "httpabbba all", "abbb", "http all")
+a = c("cool", "all httpabbba all", "abbb", "abb http all")
 a = unlist(a); a
 loc = (grepl("http", a)); 
 relevantStrings = a[loc]; relevantStrings
 
-wow = gsub(" .*", "", relevantStrings); wow
+first = gsub(".*http", "", relevantStrings); first
+second = gsub("].*", "", first);second
+new = paste0("http", second); new
 
 spacingloc = cumsum(grepl(" ", relevantStrings)); spacingloc
 result = relevantStrings[spacingloc]; result
 
-substr(a[relevantStrings], 0, spacingloc)
 
 
-a[loc]
 
 allLines = lapply(listOfFiles,readFile); allLines
 
 theLines.grouped = lapply(allLines,readFile.2); unlist(theLines.grouped[1])[2]
 result = unlist(theLines.grouped[2]); result[100]
+
+loc2 = (grepl("http", result)); loc2
+result[loc2]
+
+
+loc = lapply(result, function(x) (grepl("http", x))); loc
+result[loc]
+relevantStrings = result[loc]; relevantStrings
+
 
 View(unlist(allLines[1])[2])
 
