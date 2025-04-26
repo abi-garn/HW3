@@ -1,3 +1,5 @@
+library(stringr)
+
 #In order to turn the .clm file within each zip file into a data frame, I knew 
 #that I would need to first deal with the zipped files
 setwd("/Users/abigarn/Desktop/DavisWork/Yr1Q3/STA141B/HMW/Assignment3")
@@ -16,7 +18,7 @@ readFile <- function(file){
 }
 readFile.2 <- function(allLines){
   #Keep track of where lines are blank
-  emptyLines.loc = cumsum(allLines == '');
+  emptyLines.loc = cumsum(allLines == "");
   #Split up lines into groups using blank lines
   lines = by(allLines, emptyLines.loc, paste, collapse=" ");
   return(trimws(lines))
@@ -24,6 +26,8 @@ readFile.2 <- function(allLines){
 listOfFiles = unzip(zippedFiles); 
 
 
+theDataFrame = data.frame(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA); View(theDataFrame)
+names(theDataFrame) = c("Title Of Event", "Classification", "Priority", "SnortID", "Date-Time", "SourceIP", "SourceIP : Port", "DestinationIP", "DestinationIP : Port", "Protocol", "TTL", "TOS", "ID", "IpLen", "DgmLen", "Extra-AfterDgmLen", "Seq, Ack, Win, TcpLen, TCP Flag", "Additional Lines")
 
 
 allLines = lapply(listOfFiles,readFile); allLines
@@ -34,23 +38,32 @@ result = unlist(theLines.grouped); result[2]
 
 
 
+#Header-based extractions
+headers = sub("(\\[*\\*].*?\\[*\\*]).*", "\\1", result); headers[1]
+
+snortIDs = sub(".*(\\[[0-9\\:]+\\]).*", "\\1", headers); snortIDs[100]
+titlesOfEvents = sub(".*\\]\\s(.*)\\s\\[.*", "\\1", headers); titlesOfEvents[1]
 
 
+#Second Line extractions
+secondLines = sub(".*(\\[Classification:.*Priority:[^]]*]).*", "\\1", result);secondLines[1]
+classifications = sub("\\[Classification:\\s([^]]*).*", "\\1", secondLines); classifications[1]
+priorities = sub(".*\\[Priority:\\s([^]]*).*", "\\1", secondLines); priorities[1]
+
+#Final extractions
+remainingLines = sub(".*([0-9]+\\/.*).*", "\\1", result);remainingLines[1]
+thirdLine = sub("([^a-zA-Z]*).*", "\\1", remainingLines);thirdLine[1]
+thirdLine = trimws(thirdLine)
+
+dateTimes = sub(".*([0-9]+\\/[0-9]+\\-[0-9]+\\:[0-9]+\\:[0-9]+\\.[0-9]+).*", "\\1", thirdLine); dateTimes[1]
+sourceIP = sub(".*(\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+).*", "\\1", thirdLine); sourceIP[5]
+sourceIP = trimws(sourceIP); sourceIP[1]
+sourceIP.port = sub(".*\\.[0-9]+\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\:([0-9]+).*", "\\1", thirdLine); sourceIP.port[2]
 
 
+destinationIP = sub(".*\\>(\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+).*", "\\1", thirdLine); destinationIP[1]
 
-
-
-
-
-
-
-
-
-
-
-
-
+destinationIP.port = sub(".*\\:([0-9]+).*", "\\1", thirdLine); destinationIP.port[1]
 
 
 
