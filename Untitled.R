@@ -85,7 +85,52 @@ dgmlength = sub(".*DgmLen\\:([0-9]+).*", "\\1", fourthLine);dgmlength[1]
 
 #Last Line extractions
   #I need to get all info after dgmlength
-lastLines = sub(".*\\:[0-9]+(.*TcpLen\\:\\s[0-9]+.*)", "\\1", remainingLines);lastLines[8]
+lastLines = sub(".*DgmLen\\:[0-9]+\\s(Type.*)", "\\1", remainingLines);
+lastLines.replacement = sub(".*(DgmLen\\:[0-9]+\\s.*)", "\\1", remainingLines);
+
+
+for (i in 1:length(lastLines)){
+  element = lastLines[i]
+  condition = grepl("^Type", element)
+  if (!condition){
+    lastLines[i] = lastLines.replacement[i]
+  }
+}
+lastLines[5]
+
+#To-do
+sub("TcpLen\\:(.*)", "\\1", lastLines[5])
+
+for (i in 1:length(lastLines)){
+  element = lastLines[i]
+  condition = grepl("^Type", element)
+  ifelse(condition, forRegularLines(element,i), forErrors(element,i))
+}
+
+forRegularLines <- function(line, index){
+  anyExtraInfoAfterDgm = grepl("DgmLen\\:[0-9]+(\\s[A-Za-z]+\\s)\\*\\*\\*.*", line)
+  if (anyExtraInfoAfterDgm){
+    extraInfoAfterDgm = sub("DgmLen\\:[0-9]+(\\s[A-Za-z]+\\s)\\*\\*\\*.*", "\\1", line)
+    extraInfoAfterDgm = trimws(extraInfoAfterDgm)
+  }
+  attachCombinedData(line, index)
+  extraLines = 
+  
+}
+
+attachCombinedData <- function(line, index){
+  
+}
+
+forErrors <- function(line, index){
+  
+}
+
+
+
+#for each element in lastLines
+  #if the element does not start with "Type"
+    #Replace with corresponding replacement
 
 
 
