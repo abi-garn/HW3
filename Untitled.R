@@ -25,16 +25,16 @@ readFile.2 <- function(allLines){
 }
 listOfFiles = unzip(zippedFiles); 
 
-
-theDataFrame = data.frame(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA); View(theDataFrame)
-names(theDataFrame) = c("Title Of Event", "Classification", "Priority", "SnortID", "Date-Time", "SourceIP", "SourceIP : Port", "DestinationIP", "DestinationIP : Port", "Protocol", "TTL", "TOS", "ID", "IpLen", "DgmLen", "Extra-AfterDgmLen", "Seq, Ack, Win, TcpLen, TCP Flag", "Additional Lines")
+22
+theDataFrame = data.frame(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA); View(theDataFrame)
+names(theDataFrame) = c("Title Of Event", "Classification", "Priority", "SnortID", "Date-Time", "SourceIP", "SourceIP : Port", "DestinationIP", "DestinationIP : Port", "Protocol", "TTL", "TOS", "ID", "IpLen", "DgmLen", "Extra-AfterDgmLen", "Combo", "Additional Lines", "Error Type & Code", "Error Name", "Data Dump")
 
 
 allLines = lapply(listOfFiles,readFile); allLines
 
 theLines.grouped = lapply(allLines,readFile.2); unlist(theLines.grouped[1])[2]
 result = unlist(theLines.grouped); result[2]
-
+resultLength = length(result)
 
 
 
@@ -79,7 +79,23 @@ iplength = sub(".*IpLen\\:([0-9]+).*", "\\1", fourthLine);iplength[1]
 dgmlength = sub(".*DgmLen\\:([0-9]+).*", "\\1", fourthLine);dgmlength[1]
 
 
-
+for (i in 1:resultLength){
+  theDataFrame$"SnortID" =  snortIDs[i]
+  theDataFrame$"Title Of Event" =  titlesOfEvents[i]
+  theDataFrame$"Classification" = classifications[i]
+  theDataFrame$"Priority" = priorities[i]
+  theDataFrame$"Date-Time" = dateTimes[i]
+  theDataFrame$"SourceIP" = sourceIP[i]
+  theDataFrame$"SourceIP : Port" = sourceIP.port[i]
+  theDataFrame$"DestinationIP" = destinationIP[i]
+  theDataFrame$"DestinationIP : Port" = destinationIP.port[i]
+  theDataFrame$"Protocol" = protocol[i]
+  theDataFrame$"TTL" = ttl[i]
+  theDataFrame$"TOS" = tos[i]
+  theDataFrame$"ID" = id[i]
+  theDataFrame$"IpLen" = iplength[i]
+  theDataFrame$"DgmLen" = dgmlength[i]
+}
 
 
 
@@ -96,10 +112,7 @@ for (i in 1:length(lastLines)){
     lastLines[i] = lastLines.replacement[i]
   }
 }
-lastLines[5]
 
-#To-do
-sub("TcpLen\\:(.*)", "\\1", lastLines[5])
 
 for (i in 1:length(lastLines)){
   element = lastLines[i]
@@ -112,35 +125,34 @@ forRegularLines <- function(line, index){
   if (anyExtraInfoAfterDgm){
     extraInfoAfterDgm = sub("DgmLen\\:[0-9]+(\\s[A-Za-z]+\\s)\\*\\*\\*.*", "\\1", line)
     extraInfoAfterDgm = trimws(extraInfoAfterDgm)
+    theDataFrame$"Extra-AfterDgmLen" = extraInfoAfterDgm
   }
   attachCombinedData(line, index)
-  extraLines = 
-  
+  extraLines = sub(".*TcpLen\\:\\s(.*)", "\\1", line())
+  theDataFrame$"Additional Lines" =  extraLines
 }
 
 attachCombinedData <- function(line, index){
+  tcpflag = sub(".*\\*\\*\\*(.*)\\*\\*\\*.*", "\\1", line)
+  seq = sub(".*Seq\\:\\s([0-9]+x[0-9A-Za-z]+).*", "\\1", line)
+  ack = sub(".*Ack\\:\\s([0-9]+x[0-9A-Za-z]+).*", "\\1", line)
+  window = sub(".*Win\\:\\s([0-9]+x[0-9A-Za-z]+).*", "\\1", line)
+  tcpLen = sub(".*TcpLen\\:\\s([0-9]+).*", "\\1", line)
+  info = paste(tcpflag, seq, ack, window, tcpLen, ", ")
+  theDataFrame$"Combo" =  info
   
 }
 
 forErrors <- function(line, index){
-  
+  errorType = sub(".*Type\\:([0-9]+).*", "\\1", line); 
+  errorCode = sub(".*Code\\:([0-9]+).*", "\\1", line);
+  errorTypeAndCode = paste(errorType, errorCode, tcpLen, ", ")
+  theDataFrame$"Error Type & Code" =  errorTypeAndCode
+  errorName = sub(".*Code\\:[0-9]+\\s+(.*)\\*\\*\\sORIG.*", "\\1", line);
+  theDataFrame$"Error Name" =  errorName
+  dataDump = sub(".*DUMP\\:\\s+(.*)\\s\\*\\*\\sEND.*", "\\1", line);
+  theDataFrame$"Data Dump" =  dataDump
 }
-
-
-
-#for each element in lastLines
-  #if the element does not start with "Type"
-    #Replace with corresponding replacement
-
-
-
-
-
-
-
-
-
-
 
 
 
