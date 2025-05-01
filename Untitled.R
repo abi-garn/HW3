@@ -12,11 +12,7 @@ zippedFiles = ("./alert.zip");
 
 
 
-readFile <- function(file){
-  allLines = readLines(file)
-  return(allLines)
-}
-readFile.2 <- function(allLines){
+groupLines <- function(allLines){
   #Keep track of where lines are blank
   emptyLines.loc = cumsum(allLines == "");
   #Split up lines into groups using blank lines
@@ -27,36 +23,34 @@ listOfFiles = unzip(zippedFiles);
 file1 = listOfFiles[1]; file1
 file2 = listOfFiles[2]; file2
 
-data = data.frame(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA); 
-names(data) = c("Title Of Event", "Classification", "Priority", "SnortID", "Date-Time", "SourceIP", "SourceIP : Port", "DestinationIP", "DestinationIP : Port", "Protocol", "TTL", "TOS", "ID", "IpLen", "DgmLen", "Extra-AfterDgmLen", "Combo", "Additional Lines", "Error Type & Code", "Error Name", "Data Dump")
 
 
 forRegularLines <- function(line){
   anyExtraInfoAfterDgm = grepl("DgmLen\\:[0-9]+(\\s[A-Za-z]+\\s)\\*\\*\\*.*", line)
-  extraInfoAfterDgm = NA
+  extraInfoAfterDgm = ""
   if (anyExtraInfoAfterDgm){
     extraInfoAfterDgm = sub("DgmLen\\:[0-9]+(\\s[A-Za-z]+\\s)\\*\\*\\*.*", "\\1", line)
     extraInfoAfterDgm = trimws(extraInfoAfterDgm)
   }
   info = attachCombinedData(line)
-  extraLines = sub(".*TcpLen\\:\\s[0-9]+\\s(.*)", "\\1", line)
+  extraLines = sub(".*TcpLen\\:\\s[0-9]+(.*)", "\\1", line)
   return(c(extraInfoAfterDgm, info, extraLines))
 }
 
 
 attachCombinedData <- function(line){
-  tcpflag = sub(".*\\*\\*\\*(.*)\\*\\*\\*.*", "\\1", line)
+  tcpflag = sub(".*\\*\\*\\*([^*]+)\\*\\*\\*.*", "\\1", line)
   seq = sub(".*Seq\\:\\s([0-9]+x[0-9A-Za-z]+).*", "\\1", line)
   ack = sub(".*Ack\\:\\s([0-9]+x[0-9A-Za-z]+).*", "\\1", line)
   window = sub(".*Win\\:\\s([0-9]+x[0-9A-Za-z]+).*", "\\1", line)
-  tcpLen = sub(".*TcpLen\\:\\s([0-9]+)\\s+.*", "\\1", line)
+  tcpLen = sub(".*TcpLen\\:\\s+([0-9]+).*", "\\1", line)
   info = paste(tcpflag, seq, ack, window, tcpLen)
   return(info)
 }
 
 
 
-forErrors <- function(line){
+forErrorLines <- function(line){
   errorType = sub(".*Type\\:([0-9]+).*", "\\1", line); 
   errorCode = sub(".*Code\\:([0-9]+).*", "\\1", line);
   errorTypeAndCode = paste0(errorType, ",", errorCode)
@@ -70,10 +64,10 @@ returnExtraInfo <- function(line){
   condition = grepl("^Type", line)
   if (!condition){
     list = forRegularLines(line)
-    incrementDF = data.frame(list[1], list[2], list[3], NA, NA, NA)
+    incrementDF = data.frame(list[1], list[2], list[3], "", "", "")
   } else {
-    list = forErrors(line)
-    incrementDF = data.frame(NA, NA, NA, list[1], list[2], list[3])
+    list = forErrorLines(line)
+    incrementDF = data.frame("", "", "", list[1], list[2], list[3])
   }
   names(incrementDF) = c("Extra-AfterDgmLen", "Combo", "Additional Lines", "Error Type & Code", "Error Name", "Data Dump")
   return(incrementDF)
@@ -81,96 +75,127 @@ returnExtraInfo <- function(line){
 
 
 
-extractEverything <- function(file){
-  allLines = readFile(file)
-  theLines.grouped = readFile.2(allLines);
+
+returnDF <- function(file){
+  allLines = readLines(file)
+  theLines.grouped = groupLines(allLines);
   result = unlist(theLines.grouped);
-  headers = sub("(\\[*\\*].*?\\[*\\*]).*", "\\1", result); headers[1]
-  
-  snortIDs = sub(".*(\\[[0-9\\:]+\\]).*", "\\1", headers); snortIDs[100]
-  titlesOfEvents = sub(".*\\]\\s(.*)\\s\\[.*", "\\1", headers); titlesOfEvents[1]
+  headers = sub("(\\[*\\*].*?\\[*\\*]).*", "\\1", result); 
+  snortIDs = sub(".*(\\[[0-9\\:]+\\]).*", "\\1", headers); 
+  snortIDs = as.character(snortIDs)
+  titlesOfEvents = sub(".*\\]\\s(.*)\\s\\[.*", "\\1", headers); 
+  titlesOfEvents = as.character(titlesOfEvents)
   #Second Line extractions
-  secondLines = sub(".*(\\[Classification:.*Priority:[^]]*]).*", "\\1", result);secondLines[1]
-  classifications = sub("\\[Classification:\\s([^]]*).*", "\\1", secondLines); classifications[1]
-  priorities = sub(".*\\[Priority:\\s([^]]*).*", "\\1", secondLines); priorities[1]
+  secondLines = sub(".*(\\[Classification:.*Priority:[^]]*]).*", "\\1", result);
+  classifications = sub("\\[Classification:\\s([^]]*).*", "\\1", secondLines);
+  classifications = as.character(classifications)
+  priorities = sub(".*\\[Priority:\\s([^]]*).*", "\\1", secondLines);
+  priorities = as.numeric(priorities)
   
   #Final extractions
   #Third Line extractions
-  remainingLines = sub(".*Priority\\: [0-9]\\]\\s+([0-9]+\\/.*).*", "\\1", result);remainingLines[1]
-  thirdLine = sub("([^a-zA-Z]*).*", "\\1", remainingLines);thirdLine[1]
+  remainingLines = sub(".*Priority\\: [0-9]\\]\\s+([0-9]+\\/.*).*", "\\1", result);
+  thirdLine = sub("([^a-zA-Z]*).*", "\\1", remainingLines);
   thirdLine = trimws(thirdLine)
-  print(thirdLine)
+
+  dateTimes = sub(".*([0-9]+\\/[0-9]+\\-[0-9]+\\:[0-9]+\\:[0-9]+\\.[0-9]+).*", "\\1", thirdLine); 
+  dateTimes = as.character(dateTimes)
+  sourceIP = sub(".*(\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+).*", "\\1", thirdLine);
+  sourceIP = as.character(sourceIP)
+  sourceIP = trimws(sourceIP); 
+  sourceIP.port = sub(".*\\.[0-9]+\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\:([0-9]+).*", "\\1", thirdLine); 
+  sourceIP.port = as.numeric(sourceIP.port);
+  sourceIP.port = ifelse(is.na(sourceIP.port), "", sourceIP.port)
   
-  dateTimes = sub(".*([0-9]+\\/[0-9]+\\-[0-9]+\\:[0-9]+\\:[0-9]+\\.[0-9]+).*", "\\1", thirdLine); dateTimes[1]
-  sourceIP = sub(".*(\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+).*", "\\1", thirdLine); sourceIP[5]
-  sourceIP = trimws(sourceIP); sourceIP[1]
-  sourceIP.port = sub(".*\\.[0-9]+\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\:([0-9]+).*", "\\1", thirdLine); sourceIP.port[2]
-  
-  
-  destinationIP = sub(".*\\>(\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+).*", "\\1", thirdLine); destinationIP[1]
-  
-  destinationIP.port = sub(".*\\:([0-9]+).*", "\\1", thirdLine); destinationIP.port[1]
-  
+
+  destinationIP = sub(".*\\>\\s+([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+).*", "\\1", thirdLine);
+  destinationIP = as.character(destinationIP)
+  destinationIP.port = sub(".*\\:([0-9]+).*", "\\1", thirdLine); 
+  destinationIP.port = as.numeric(destinationIP.port);
   #Fourth Line extractions
-  fourthLine = sub(".*\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\:[0-9]+(.*DgmLen\\:[0-9]+).*", "\\1", remainingLines);fourthLine[1]
+  fourthLine = sub(".*\\s[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\:[0-9]+(.*DgmLen\\:[0-9]+).*", "\\1", remainingLines);
   
-  protocol = sub("([A-Za-z]+).*", "\\1", fourthLine);protocol[1]
+  protocol = sub("([A-Za-z]+).*", "\\1", fourthLine);
+
   protocol = trimws(protocol)
-  
-  ttl = sub(".*TTL\\:([0-9]+).*", "\\1", fourthLine);ttl[1]
-  tos = sub(".*TOS\\:([0-9]+x[0-9]+).*", "\\1", fourthLine);tos[1]
-  id = sub(".*ID\\:([0-9]+).*", "\\1", fourthLine);id[1]
-  iplength = sub(".*IpLen\\:([0-9]+).*", "\\1", fourthLine);iplength[1]
-  dgmlength = sub(".*DgmLen\\:([0-9]+).*", "\\1", fourthLine);dgmlength[1]
-  
+  protocol = as.character(protocol)
+
+  ttl = sub(".*TTL\\:([0-9]+).*", "\\1", fourthLine);
+  ttl = as.numeric(ttl)
+  tos = sub(".*TOS\\:([0-9]+x[0-9]+).*", "\\1", fourthLine);
+  tos = as.character(tos)
+  id = sub(".*ID\\:([0-9]+).*", "\\1", fourthLine);
+  id = as.numeric(id)
+  iplength = sub(".*IpLen\\:([0-9]+).*", "\\1", fourthLine);
+  iplength = as.numeric(iplength)
+  dgmlength = sub(".*DgmLen\\:([0-9]+).*", "\\1", fourthLine);
+  dgmlength = as.numeric(dgmlength)
   #Last Line extractions
   #I need to get all info after dgmlength
   lastLines = sub(".*DgmLen\\:[0-9]+\\s(Type.*)", "\\1", remainingLines);
   lastLines.replacement = sub(".*(DgmLen\\:[0-9]+\\s.*)", "\\1", remainingLines);
   
-  
+ 
   
   newDataFrame = data.frame(snortIDs, titlesOfEvents, classifications, priorities, dateTimes, sourceIP, sourceIP.port, destinationIP, destinationIP.port, protocol, ttl, tos, id, iplength, dgmlength, stringsAsFactors=FALSE)
+  names(newDataFrame) = c("Title Of Event", "Classification", "Priority", "SnortID", "Date-Time", "SourceIP", "SourceIP : Port", "DestinationIP", "DestinationIP : Port", "Protocol", "TTL", "TOS", "ID", "IpLen", "DgmLen")
   condition = grepl("^Type", lastLines)
+
   lastLines = ifelse(condition, lastLines, lastLines.replacement)
   
   
   extraInfo = lapply(lastLines,returnExtraInfo)
   allExtraInfo = do.call(rbind, extraInfo)
-  
   newDataFrame2= cbind(newDataFrame, allExtraInfo)
-  
-  return(newDataFrame2)
+  newDataFrame2.length = nrow(newDataFrame2)
+  return(newDataFrame2[-(newDataFrame2.length),])
   
 }
-  
 
-newDataframe = extractEverything(file2)
+
+
+newDataframe = returnDF(file1)
+
 View(newDataframe)
 
 
-
-View(returnExtraInfo("DgmLen:91 DF ***AP*** Seq: 0x1989FB74  Ack: 0x6D4515E5  Win: 0xFB  TcpLen: 32 TCP Options (3) => NOP NOP TS: 999976349 8824698"))
-
-
-
-
-
-
-
-
+getLinks <- function(file){
+  allLines = readLines(file)
+  theLines.grouped = groupLines(allLines);
+  result = unlist(theLines.grouped);
+  loc = (grepl("http", result)); 
+  relevantLineGroups = result[loc]
+  
+  
+  includingLinkContent = gsub(".*http", "", relevantLineGroups );
+  linkBody = gsub("].*", "", includingLinkContent);
+  links = paste0("http", linkBody); 
+  return(links)
+}
 
 links = getLinks(file1);unique(links)
 
-getLinks <- function(file){
-  allLines = readFile(file)
-  theLines.grouped = readFile.2(allLines);
-  result = unlist(theLines.grouped);
-  loc = (grepl("http", result)); loc
-  wow = result[loc]
-  
-  first = gsub(".*http", "", wow); first
-  second = gsub("].*", "", first);second
-  new = paste0("http", second); new
-  return(new)
-}
+
+
+
+
+
+
+
+summary(newDataframe)
+names(newDataframe)
+dim(newDataframe)
+sapply(newDataframe, class)
+any(is.na(newDataframe))
+
+
+
+#Verifying if each Title Of Event is in the correct format
+table(grepl("\\[[0-9]\\:[0-9]+\\:[0-9]+\\]", newDataframe$`Title Of Event`))
+#Verifying if each date-time is in the correct format
+table(grepl("([0-9]+\\/[0-9]+\\-[0-9]+\\:[0-9]+\\:[0-9]+\\.[0-9]+)", newDataframe$`Date-Time`))
+#Verifying if each SourceIP and DestinationIP is in the correct format
+table(grepl("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+", newDataframe$SourceIP))
+table(grepl("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+", newDataframe$DestinationIP))
+
+
